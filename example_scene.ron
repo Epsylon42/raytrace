@@ -1,14 +1,67 @@
 (
-    size: (40, 30),
+    size: (800, 600),
+    multisample: true,
+    camera: (
+        trans: ( z: -2.0 )
+    ),
     objects: [
         (
-            pos: ( trans: ( z: 3.0 ) ),
-            shape: Ball(2.0)
+            pos: (
+                trans: ( x: 1.5, z: 3.5 )
+            ),
+            shape: Ball(2.5),
+            mat: (
+                phong: (
+                    part: 0.5,
+                    ambient: ( r: 0.0, g: 0.5, b: 0.1 ),
+                    diffuse: ( r: 0.0, g: 0.5, b: 0.1 ),
+                    specular: ( r: 1.0, g: 1.0, b: 1.0 ),
+                    shininess: ( r: 5.0, g: 5.0, b: 5.0 )
+                ),
+                reflect: (
+                    part: 0.5,
+                )
+            )
+        ),
+        (
+            pos: ( trans: ( x: -0.5, z: 5.0 ) ),
+            shape: Ball(1.5),
+            mat: (
+                phong: (
+                    diffuse: ( r: 1.0, g: 0.0, b: 0.0 ),
+                    specular: ( r: 1.0, g: 0.5, b: 0.5 ),
+                    shininess: ( r: 5.0, g: 5.0, b: 5.0 )
+                )
+            )
+        ),
+        (
+            pos: (
+                trans: ( x: -2.0, y: 1.0, z: 2.0 )    
+            ),
+            shape: Cuboid(x: 0.5, y: 0.5, z: 0.5),
+            mat: (
+                phong: (
+                    part: 0.5,    
+                ),
+                reflect: (
+                    part: 0.5    
+                )
+            )
         )
     ],
     lights: [
         (
-            pos: (),
+            pos: ( 
+                trans: ( x: 3.0 ),
+            ),
+            brightness: ( r: 3.0, g: 3.0, b: 3.0 ),
+            kind: Point,
+        ),
+        (
+            pos: (
+                trans: ( x: -5.0, z: 3.0 ),
+            ),
+            brightness: (r: 10.0, g: 5.0, b: 5.0),
             kind: Point,
         )
     ]

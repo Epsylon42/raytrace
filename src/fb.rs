@@ -82,12 +82,20 @@ impl std::ops::Add<Self> for Color {
 }
 
 pub struct Fb {
-    pub width: u16,
-    pub height: u16,
+    width: u16,
+    height: u16,
     data: Vec<Color>,
 }
 
 impl Fb {
+    pub fn width(&self) -> u16 {
+        self.width
+    }
+
+    pub fn height(&self) -> u16 {
+        self.height
+    }
+
     pub fn new_empty(width: u16, height: u16) -> Self {
         Fb {
             width,
@@ -121,22 +129,17 @@ impl Fb {
         }
     }
 
-    pub fn to_image(&self) -> image::RgbImage {
-        image::RgbImage::from_vec(
-            self.width as u32,
-            self.height as u32,
-            self.data
-                .iter()
-                .map(Color::to_pixel)
-                .flat_map(|[r, g, b]| {
-                    std::iter::empty()
-                        .chain(std::iter::once(r))
-                        .chain(std::iter::once(g))
-                        .chain(std::iter::once(b))
-                })
-                .collect(),
-        )
-        .unwrap()
+    pub fn to_bytes(&self) -> Vec<u8> {
+        self.data
+            .iter()
+            .map(Color::to_pixel)
+            .flat_map(|[r, g, b]| {
+                std::iter::empty()
+                    .chain(std::iter::once(r))
+                    .chain(std::iter::once(g))
+                    .chain(std::iter::once(b))
+            })
+            .collect()
     }
 
     pub fn get(&self, x: u16, y: u16) -> Color {

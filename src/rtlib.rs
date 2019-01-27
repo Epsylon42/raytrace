@@ -7,6 +7,8 @@ extern crate ncollide3d as nc;
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::*;
 
+use png::HasParameters;
+
 mod fb;
 mod material;
 mod raytrace;
@@ -16,9 +18,7 @@ mod scene;
 #[wasm_bindgen]
 pub fn trace_wasm(scene: &str) -> Result<js_sys::Uint8Array, JsValue> {
     trace(scene)
-        .map_err(|err| {
-            js_sys::JsString::from(err).into()
-        })
+        .map_err(|err| js_sys::JsString::from(err).into())
         .map(|result| {
             let arr = js_sys::Uint8Array::new_with_length(result.len() as u32);
             let view = js_sys::DataView::new(&arr.buffer(), 0, result.len());
@@ -29,7 +29,6 @@ pub fn trace_wasm(scene: &str) -> Result<js_sys::Uint8Array, JsValue> {
             arr
         })
 }
-
 
 pub fn trace(scene: &str) -> Result<Vec<u8>, String> {
     let scene = ron::de::from_str::<scene::Scene>(scene).map_err(|e| format!("{:?}", e))?;
@@ -58,17 +57,23 @@ pub fn trace(scene: &str) -> Result<Vec<u8>, String> {
                 .map(|(x, y)| fb.get(x, y) * (SAMPLES as f32).powi(2).recip())
                 .fold(fb::Color::black(), |acc, a| acc + a)
         })
-            .to_image()
     } else {
-        raytrace::raytrace(size, fov, steps, camera, objects, lights).to_image()
+        raytrace::raytrace(size, fov, steps, camera, objects, lights)
     };
 
-    let width = result.width();
-    let height = result.height();
+    let width = result.width() as u32;
+    let height = result.height() as u32;
 
     let mut buf = Vec::new();
-    image::png::PNGEncoder::new(std::io::Cursor::new(&mut buf))
-        .encode(&result.into_raw(), width, height, image::ColorType::RGB(8)).unwrap();
+    let mut encoder = png::Encoder::new(std::io::Cursor::new(&mut buf), width, height);
+    encoder.set(png::ColorType::RGB);
+    encoder.set(png::BitDepth::Eight);
+
+    encoder
+        .write_header()
+        .map_err(|e| format!("{:?}", e))?
+        .write_image_data(&result.to_bytes())
+        .map_err(|e| format!("{:?}", e))?;
 
     Ok(buf)
 }

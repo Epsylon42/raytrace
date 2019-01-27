@@ -1,3 +1,5 @@
+//! Angles are specified in degrees
+
 use serde::{Deserialize, Serialize};
 
 use crate::{fb::Color, material::Material, raytrace};
@@ -24,6 +26,7 @@ impl Rotation {
     fn into_raytrace(self) -> na::UnitQuaternion<f32> {
         match self {
             Rotation::Euler { roll, pitch, yaw } => na::UnitQuaternion::from_euler_angles(
+                //TODO: fix euler angle order
                 roll.to_radians(),
                 pitch.to_radians(),
                 yaw.to_radians(),

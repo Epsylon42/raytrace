@@ -1,4 +1,4 @@
-use na::{Isometry3, Point3, Unit, UnitQuaternion, Vector3};
+use na::{Isometry3, Point3, UnitQuaternion, Vector3};
 use nc::{
     query::{Ray, RayIntersection},
     shape::ShapeHandle,
@@ -6,7 +6,6 @@ use nc::{
         CollisionGroups, CollisionObject as CollisionObject_, CollisionWorld as CollisionWorld_,
     },
 };
-use serde::{Deserialize, Serialize};
 
 use crate::{
     fb::{Color, Fb},
@@ -253,7 +252,7 @@ fn calculate_reflection(
     world: &CollisionWorld,
     lights: &[LightSource],
 ) -> Color {
-    let ReflectData { ray, reflect } = reflect_args;
+    let ReflectData { ray, .. } = reflect_args;
 
     if let Some((obj, int)) = first_interference(ray, world) {
         let normal = Ray::new(ray.origin + ray.dir * int.toi, int.normal);
@@ -261,7 +260,7 @@ fn calculate_reflection(
             GetColorArgs {
                 ambient: 0.01,
                 mat: &obj.data().mat,
-                ray: ray,
+                ray,
                 normal,
                 steps_left,
             },

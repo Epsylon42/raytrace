@@ -1,3 +1,6 @@
+#![allow(dead_code)]
+#![allow(clippy::cast_lossless)]
+
 extern crate nalgebra as na;
 extern crate ncollide3d as nc;
 
@@ -64,8 +67,7 @@ pub fn trace(scene: &str) -> Result<Vec<u8>, String> {
     let height = result.height();
 
     let mut buf = Vec::new();
-    let mut writer = std::io::Cursor::new(&mut buf);
-    image::png::PNGEncoder::new(writer)
+    image::png::PNGEncoder::new(std::io::Cursor::new(&mut buf))
         .encode(&result.into_raw(), width, height, image::ColorType::RGB(8)).unwrap();
 
     Ok(buf)

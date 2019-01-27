@@ -1,0 +1,15 @@
+(
+    size: (40, 30),
+    objects: [
+        (
+            pos: ( trans: ( z: 3.0 ) ),
+            shape: Ball(2.0)
+        )
+    ],
+    lights: [
+        (
+            pos: (),
+            kind: Point,
+        )
+    ]
+)

@@ -59,6 +59,44 @@ pub enum LightSourceKind {
     Point,
 }
 
+struct RtConfig {
+    ambient: Color,
+    world: CollisionWorld,
+    lights: Vec<LightSource>,
+}
+
+struct RayData {
+    ray: Ray<f32>,
+    steps_left: usize,
+    refraction_stack: rpds::Stack<f32>,
+}
+
+impl RayData {
+    fn refract(&self, ray: Ray<f32>, index: f32) -> Self {
+        RayData {
+            ray,
+            steps_left: self.steps_left - 1,
+            refraction_stack: self.refraction_stack.push(index),
+        }
+    }
+
+    fn unrefract(&self, ray: Ray<f32>) -> Self {
+        RayData {
+            ray,
+            steps_left: self.steps_left - 1,
+            refraction_stack: self.refraction_stack.pop().expect("Refraction stack empty"),
+        }
+    }
+
+    fn push(&self, ray: Ray<f32>) -> Self {
+        RayData {
+            ray,
+            steps_left: self.steps_left - 1,
+            refraction_stack: self.refraction_stack.clone(),
+        }
+    }
+}
+
 pub fn raytrace(
     size: (u16, u16),
     fov: f32,
@@ -84,25 +122,20 @@ pub fn raytrace(
 
     let plane_distance = (fov / 2.0).tan().recip();
 
-    let func = |x, y| {
-        let ray = get_ray(to_uv(x, y, size), plane_distance, camera);
+    let config = RtConfig {
+        ambient: Color::new(0.0, 0.0, 0.1),
+        world,
+        lights,
+    };
 
-        if let Some((obj, int)) = first_interference(ray, &world) {
-            let normal = Ray::new(ray.origin + ray.dir * int.toi, int.normal);
-            get_color(
-                GetColorArgs {
-                    ambient: 0.01,
-                    mat: &obj.data().mat,
-                    ray,
-                    normal,
-                    steps_left: steps,
-                },
-                &world,
-                &lights,
-            )
-        } else {
-            Color::new(0.0, 0.0, 0.1)
-        }
+    let func = |x, y| {
+        let ray = RayData {
+            ray: get_ray(to_uv(x, y, size), plane_distance, camera),
+            steps_left: steps,
+            refraction_stack: rpds::Stack::new().push(1.0),
+        };
+
+        cast_ray(ray, &config)
     };
 
     #[cfg(feature = "wasm")]
@@ -124,6 +157,26 @@ fn get_ray(uv: (f32, f32), plane_distance: f32, camera: Isometry3<f32>) -> Ray<f
     Ray::new(Point3::origin(), direction).transform_by(&camera)
 }
 
+fn cast_ray(ray: RayData, config: &RtConfig) -> Color {
+    if ray.steps_left == 0 {
+        return Color::black();
+    }
+
+    if let Some((obj, int)) = first_interference(ray.ray, &config.world) {
+        let normal = Ray::new(ray.ray.origin + ray.ray.dir * int.toi, int.normal);
+        get_color(
+            ray,
+            config,
+            GetColorArgs {
+                normal,
+                mat: &obj.data().mat,
+            },
+        )
+    } else {
+        config.ambient
+    }
+}
+
 fn first_interference(
     ray: Ray<f32>,
     world: &CollisionWorld,
@@ -136,51 +189,37 @@ fn first_interference(
 
 #[derive(Clone, Copy)]
 struct GetColorArgs<'a> {
-    ambient: f32,
     mat: &'a Material,
-    ray: Ray<f32>,
     normal: Ray<f32>,
-    steps_left: usize,
 }
 
-fn get_color(args: GetColorArgs, world: &CollisionWorld, lights: &[LightSource]) -> Color {
+fn get_color(ray: RayData, config: &RtConfig, args: GetColorArgs) -> Color {
     let GetColorArgs {
-        ambient,
         mat: Material { phong, reflect },
-        ray,
         normal,
-        steps_left,
     } = args;
 
-    if steps_left == 0 {
-        return Color::black();
-    }
-
-    let mut color = phong.ambient * ambient;
+    let mut color = phong.ambient * config.ambient;
 
     let origin_with_margin = normal.origin + normal.dir * 0.00001;
-    let viewer = ray.origin - normal.origin;
+
+    let viewer = -ray.ray.dir;
     let viewer_reflection = {
         let rotation_to_normal = UnitQuaternion::rotation_between(&viewer, &normal.dir).unwrap();
         rotation_to_normal * rotation_to_normal * viewer
     };
-    let reflection_color = calculate_reflection(
-        ReflectData {
-            ray: Ray::new(origin_with_margin, viewer_reflection),
-            reflect: &reflect,
-        },
-        steps_left - 1,
-        world,
-        lights,
+    let reflection_color = cast_ray(
+        ray.push(Ray::new(origin_with_margin, viewer_reflection)),
+        config,
     );
 
-    for light in lights {
+    for light in &config.lights {
         let light_pos = Point3::from(light.pos.translation.vector);
         let distance = na::distance(&normal.origin, &light_pos);
 
         let intersection = first_interference(
             Ray::new(origin_with_margin, light_pos - origin_with_margin),
-            world,
+            &config.world,
         );
 
         let light_is_visible = if let Some((_, intersection)) = intersection {
@@ -201,81 +240,20 @@ fn get_color(args: GetColorArgs, world: &CollisionWorld, lights: &[LightSource])
                 rotation_to_normal * rotation_to_normal * light_direction
             };
 
-            let phong_color = calculate_phong(PhongData {
-                brightness: light_brightness,
-                reflection: light_reflection,
-                light: light_dir,
-                viewer,
-                normal,
-                phong: &phong,
-            }) * na::distance_squared(&normal.origin, &light_pos).recip();
+            let diffuse =
+                phong.diffuse * light_brightness * normal.dir.angle(&light_dir).cos().max(0.0);
+
+            let specular = (phong.specular * light_brightness).combine(&phong.shininess, |spec, shine| {
+                spec * viewer.angle(&light_reflection).cos().max(0.0).powf(shine)
+            });
+
+            let phong_color = (diffuse + specular) * na::distance_squared(&normal.origin, &light_pos).recip();
 
             color = color + phong_color * phong.part;
         }
     }
 
     color + reflection_color * reflect.part
-}
-
-struct PhongData<'a> {
-    brightness: Color,
-    reflection: Vector3<f32>,
-    light: Vector3<f32>,
-    viewer: Vector3<f32>,
-    normal: Ray<f32>,
-    phong: &'a Phong,
-}
-
-#[inline(always)]
-fn calculate_phong(args: PhongData) -> Color {
-    let PhongData {
-        brightness,
-        reflection,
-        light,
-        viewer,
-        normal,
-        phong,
-    } = args;
-
-    let diffuse = phong.diffuse * brightness * normal.dir.angle(&light).cos().max(0.0);
-
-    let specular = (phong.specular * brightness).combine(&phong.shininess, |spec, shine| {
-        spec * viewer.angle(&reflection).cos().max(0.0).powf(shine)
-    });
-
-    diffuse + specular
-}
-
-struct ReflectData<'a> {
-    ray: Ray<f32>,
-    reflect: &'a Reflect,
-}
-
-#[inline(always)]
-fn calculate_reflection(
-    reflect_args: ReflectData,
-    steps_left: usize,
-    world: &CollisionWorld,
-    lights: &[LightSource],
-) -> Color {
-    let ReflectData { ray, .. } = reflect_args;
-
-    if let Some((obj, int)) = first_interference(ray, world) {
-        let normal = Ray::new(ray.origin + ray.dir * int.toi, int.normal);
-        get_color(
-            GetColorArgs {
-                ambient: 0.01,
-                mat: &obj.data().mat,
-                ray,
-                normal,
-                steps_left,
-            },
-            world,
-            lights,
-        )
-    } else {
-        Color::new(0.0, 0.0, 0.1)
-    }
 }
 
 #[cfg(test)]

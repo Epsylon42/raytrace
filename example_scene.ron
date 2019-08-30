@@ -2,7 +2,8 @@
     size: (800, 600),
     multisample: true,
     camera: (
-        trans: ( z: -2.0 )
+        trans: ( z: -2.0 ),
+        rot: Euler( roll: 10.0 )
     ),
     objects: [
         (

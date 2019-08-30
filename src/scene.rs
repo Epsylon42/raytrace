@@ -26,10 +26,9 @@ impl Rotation {
     fn into_raytrace(self) -> na::UnitQuaternion<f32> {
         match self {
             Rotation::Euler { roll, pitch, yaw } => na::UnitQuaternion::from_euler_angles(
-                //TODO: fix euler angle order
-                roll.to_radians(),
                 pitch.to_radians(),
                 yaw.to_radians(),
+                roll.to_radians(),
             ),
 
             Rotation::Quaternion { x, y, z, w } => {

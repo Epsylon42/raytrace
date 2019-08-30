@@ -2,9 +2,14 @@ use na::{Isometry3, Point3, UnitQuaternion, Vector3};
 use nc::{
     query::{Ray, RayIntersection},
     shape::ShapeHandle,
-    world::{
-        CollisionGroups, CollisionObject as CollisionObject_, CollisionWorld as CollisionWorld_,
-    },
+    pipeline::{
+        object::{
+            CollisionGroups,
+            CollisionObject as CollisionObject_,
+            GeometricQueryType
+        },
+        world::CollisionWorld as CollisionWorld_
+    }
 };
 
 use crate::{
@@ -71,7 +76,7 @@ pub fn raytrace(
             pos,
             shape,
             CollisionGroups::new(),
-            nc::world::GeometricQueryType::Contacts(0.0, 0.0),
+            GeometricQueryType::Contacts(0.0, 0.0),
             data,
         );
     }
@@ -125,7 +130,8 @@ fn first_interference(
 ) -> Option<(&CollisionObject, RayIntersection<f32>)> {
     world
         .interferences_with_ray(&ray, &CollisionGroups::new())
-        .min_by(|(_, isect1), (_, isect2)| isect1.toi.partial_cmp(&isect2.toi).unwrap_or(std::cmp::Ordering::Less))
+        .min_by(|(_, _, isect1), (_, _, isect2)| isect1.toi.partial_cmp(&isect2.toi).unwrap_or(std::cmp::Ordering::Less))
+        .map(|(_, obj, isect)| (obj, isect))
 }
 
 #[derive(Clone, Copy)]

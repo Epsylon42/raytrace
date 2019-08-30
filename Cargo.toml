@@ -17,11 +17,11 @@ path = "src/main.rs"
 wasm = ["wasm-bindgen", "js-sys"]
 
 [dependencies]
-nalgebra = "0.16.13"
-ncollide3d = "0.17.3"
+nalgebra = "0.18"
+ncollide3d = "0.20"
 serde = "1.0.85"
 ron = "0.4.1"
 rayon = "1.0.3"
-wasm-bindgen = { version = "0.2.33", optional = true }
+wasm-bindgen = { version = "0.2", optional = true }
 js-sys = { version = "0.3.10", optional = true }
 png = "0.14.0"

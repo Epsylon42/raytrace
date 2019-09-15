@@ -15,6 +15,7 @@ path = "src/main.rs"
 
 [features]
 wasm = ["wasm-bindgen", "js-sys"]
+update = ["minifb"]
 
 [dependencies]
 nalgebra = "0.18"
@@ -26,3 +27,4 @@ wasm-bindgen = { version = "0.2", optional = true }
 js-sys = { version = "0.3.10", optional = true }
 png = "0.14.0"
 rpds = "0.6.0"
+minifb = { version = "0.13.0", optional = true }

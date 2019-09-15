@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{fb::Color, material::Material, raytrace};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 enum Rotation {
     Euler {
         #[serde(default)]
@@ -48,7 +48,7 @@ impl Default for Rotation {
     }
 }
 
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize, Default, Clone, Debug)]
 struct Translation {
     #[serde(default)]
     x: f32,
@@ -64,7 +64,7 @@ impl Translation {
     }
 }
 
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize, Default, Clone, Debug)]
 struct Position {
     #[serde(default)]
     trans: Translation,
@@ -78,7 +78,7 @@ impl Position {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 enum Shape {
     Ball(f32),
     Cuboid { x: f32, y: f32, z: f32 },
@@ -95,7 +95,7 @@ impl Shape {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 struct Object {
     pos: Position,
     shape: Shape,
@@ -113,7 +113,7 @@ impl Object {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 struct LightSource {
     pos: Position,
     brightness: Color,
@@ -132,12 +132,12 @@ impl LightSource {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 enum LightSourceKind {
     Point,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Scene {
     #[serde(default = "default_size")]
     pub size: (u16, u16),

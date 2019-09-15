@@ -142,6 +142,19 @@ impl Fb {
             .collect()
     }
 
+    pub fn to_packed_bgr(&self) -> Vec<u32> {
+        self.data
+            .iter()
+            .map(Color::to_pixel)
+            .map(|[r, g, b]| {
+                (b as u32) << 0 |
+                (g as u32) << 8 |
+                (r as u32) << 16 |
+                u32::max_value() << 24
+            })
+            .collect()
+    }
+
     pub fn get(&self, x: u16, y: u16) -> Color {
         self.data[pack(x, y, self.width)]
     }

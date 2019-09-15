@@ -3,45 +3,49 @@ extern crate ncollide3d as nc;
 
 extern crate rtlib;
 
-// fn open_display(size: (u16, u16), ev: &glium::glutin::EventsLoop) -> (glium::Display, glium::Program) {
-//     let mut window = glium::glutin::WindowBuilder::new()
-//         .with_dimensions(size.into())
-//         .with_title("Raytracer");
-//     let context = glium::glutin::ContextBuilder::new();
-
-//     let display = glium::Display::new(window, context, &ev).unwrap();
-//     let program = glium::Program::from_source(
-//         &display,
-//         "
-// #version 150
-
-// in vec2 vertex;
-// out vec2 tex;
-
-// void main() {
-//     tex = vertex / 2.0 + vec2(0.5);
-//     gl_Position = vec4(vertex, 0.0, 1.0);
-// }
-// ",
-//         "
-// #version 150
-
-// in vec2 tex;
-// uniform sampler2D image;
-
-// void main() {
-//     gl_FragColor = texture(tex, image);
-// }
-// ",
-//         None
-//     ).unwrap();
-// }
-
 fn main() {
     let path = std::env::args().nth(1).expect("Expected path to scene");
 
-    let src = std::fs::read_to_string(path).unwrap();
-    let result = rtlib::trace(&src).unwrap();
+    #[cfg(feature = "update")]
+    {
+        let mut window: Option<minifb::Window> = None;
+        let mut size = (0, 0);
+        let mut prev_src = None;
 
-    std::fs::write("result.png", result).unwrap();
+        while window.as_ref().map(|w| w.is_open()).unwrap_or(true) {
+            let src = std::fs::read_to_string(&path).unwrap();
+            let scene = match ron::de::from_str::<rtlib::scene::Scene>(&src) {
+                Ok(scene) => scene,
+                Err(e) => {
+                    eprintln!("Error: {}", e);
+                    continue;
+                }
+            };
+
+            if Some(src.as_str()) != prev_src.as_ref().map(String::as_str) {
+                if scene.size != size || window.is_none() {
+                    size = scene.size;
+                    window = Some(minifb::Window::new(
+                        "Raytrace",
+                        size.0 as usize,
+                        size.1 as usize,
+                        Default::default(),
+                    ).unwrap());
+                }
+
+                let window = window.as_mut().unwrap();
+                let buf = rtlib::trace_scene(scene).to_packed_bgr();
+                window.update_with_buffer(&buf).unwrap();
+                println!("Update!");
+            }
+            prev_src = Some(src);
+        }
+    }
+    #[cfg(not(feature = "update"))]
+    {
+        let src = std::fs::read_to_string(path).unwrap();
+        let result = rtlib::trace(&src).unwrap();
+
+        std::fs::write("result.png", result).unwrap();
+    }
 }

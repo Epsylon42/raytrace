@@ -9,10 +9,10 @@ use wasm_bindgen::prelude::*;
 
 use png::HasParameters;
 
-mod fb;
-mod material;
-mod raytrace;
-mod scene;
+pub mod fb;
+pub mod material;
+pub mod raytrace;
+pub mod scene;
 
 #[cfg(feature = "wasm")]
 #[wasm_bindgen]
@@ -31,8 +31,11 @@ pub fn trace_wasm(scene: &str) -> Result<js_sys::Uint8Array, JsValue> {
 }
 
 pub fn trace(scene: &str) -> Result<Vec<u8>, String> {
-    let scene = ron::de::from_str::<scene::Scene>(scene).map_err(|e| format!("{:?}", e))?;
+    let fb = trace_scene(ron::de::from_str(scene).map_err(|e| format!("{:?}", e))?);
+    encode(fb).map_err(|e| format!("{:?}", e))
+}
 
+pub fn trace_scene(scene: scene::Scene) -> fb::Fb {
     let size = scene.size;
     let fov = scene.fov;
     let steps = scene.steps;
@@ -42,7 +45,7 @@ pub fn trace(scene: &str) -> Result<Vec<u8>, String> {
 
     const SAMPLES: u16 = 2;
 
-    let result = if multisample {
+    if multisample {
         let fb = raytrace::raytrace(
             (size.0 * SAMPLES, size.1 * SAMPLES),
             fov,
@@ -59,21 +62,21 @@ pub fn trace(scene: &str) -> Result<Vec<u8>, String> {
         })
     } else {
         raytrace::raytrace(size, fov, steps, camera, objects, lights)
-    };
+    }
+}
 
-    let width = result.width() as u32;
-    let height = result.height() as u32;
+pub fn encode(fb: fb::Fb) -> std::io::Result<Vec<u8>> {
+    let width = fb.width() as u32;
+    let height = fb.height() as u32;
 
-    let mut buf = Vec::new();
-    let mut encoder = png::Encoder::new(std::io::Cursor::new(&mut buf), width, height);
+    let mut res = Vec::new();
+    let mut encoder = png::Encoder::new(std::io::Cursor::new(&mut res), width, height);
     encoder.set(png::ColorType::RGB);
     encoder.set(png::BitDepth::Eight);
 
     encoder
-        .write_header()
-        .map_err(|e| format!("{:?}", e))?
-        .write_image_data(&result.to_bytes())
-        .map_err(|e| format!("{:?}", e))?;
+        .write_header()?
+        .write_image_data(&fb.to_bytes())?;
 
-    Ok(buf)
+    Ok(res)
 }
